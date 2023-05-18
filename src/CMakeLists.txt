@@ -1,12 +1,13 @@
 # List of headers
 set(MY_MD_HEADERS
   hello.h
-)
+  verlet.h
+        types.h)
 
 # List of implementation files
 set(MY_MD_CPP
   hello.cpp
-)
+        verlet.cpp)
 
 # Create a static library
 add_library(my_md_lib STATIC ${MY_MD_CPP} ${MY_MD_HEADERS})

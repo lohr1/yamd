@@ -20,7 +20,7 @@ set(MY_TESTS_HEADERS
 
 set(MY_TESTS_CPP
   test_hello_world.cpp
-)
+  test_verlet.cpp)
 
 # Creating the test executable
 add_executable(my_tests ${MY_TESTS_CPP} ${MY_TESTS_HEADERS})
