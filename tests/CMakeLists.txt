@@ -20,10 +20,17 @@ set(MY_TESTS_HEADERS
 
 set(MY_TESTS_CPP
   test_hello_world.cpp
-  test_verlet.cpp)
+  test_verlet.cpp test_lj_direct_summation.cpp)
 
 # Creating the test executable
 add_executable(my_tests ${MY_TESTS_CPP} ${MY_TESTS_HEADERS})
+
+#target_include_directories()
+
+target_include_directories(my_tests
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/../milestones/04
+        )
 
 # Linking against GTest and our MD code
 target_link_libraries(my_tests PUBLIC my_md_lib gtest gtest_main)
