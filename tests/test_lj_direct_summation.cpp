@@ -33,7 +33,9 @@ TEST(LJDirectSummationTest, Forces) {
     constexpr double delta = 0.0001;  // difference used for numerical (finite difference) computation of forces
 
     Atoms atoms(nb_atoms);
+    //srand((unsigned int) time(0)); // Seed random num generator
     atoms.positions.setRandom();  // random numbers between -1 and 1
+    std::cout << atoms.positions;
     //atoms.positions *= 1.2; // To modify pos's from setRandom() since they seemed to cause one test to fail
 
     // compute and store energy of the indisturbed configuration

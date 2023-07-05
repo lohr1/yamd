@@ -6,6 +6,7 @@
 //
 double lj_direct_summation(Atoms &atoms, double epsilon, double sigma){
     // Directly modifies forces in atoms. Returns potential energy.
+    atoms.forces.setZero(); // Forces depend only on current position
     // Loop through atoms, calc potential and force on each one due to LJ pot. Update force.
     double net_pot = 0;
 
