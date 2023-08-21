@@ -33,10 +33,9 @@ TEST(LJDirectSummationTest, Forces) {
     constexpr double delta = 0.0001;  // difference used for numerical (finite difference) computation of forces
 
     Atoms atoms(nb_atoms);
-    //srand((unsigned int) time(0)); // Seed random num generator
+    srand((unsigned int) time(0)); // Seed random num generator
     atoms.positions.setRandom();  // random numbers between -1 and 1
-    std::cout << atoms.positions;
-    //atoms.positions *= 1.2; // To modify pos's from setRandom() since they seemed to cause one test to fail
+    atoms.positions *= 1.2;
 
     // compute and store energy of the indisturbed configuration
     double e0{lj_direct_summation(atoms, epsilon, sigma)};
@@ -61,7 +60,6 @@ TEST(LJDirectSummationTest, Forces) {
 
             // check whether finite-difference and analytic forces agree
             if (abs(forces0(dim, i)) > 1e-10) {
-                std::cout << i << ' ' << dim << std::endl;
                 EXPECT_NEAR(abs(fd_force - forces0(dim, i)) / forces0(dim, i), 0, 1e-5);
             } else {
                 EXPECT_NEAR(fd_force, forces0(dim, i), 1e-10);

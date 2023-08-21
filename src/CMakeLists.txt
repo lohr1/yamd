@@ -3,14 +3,14 @@ set(MY_MD_HEADERS
   hello.h
   verlet.h
         types.h atoms.h
-        xyz.h berendsen.h helpers.h gnuplot-iostream.h)
+        xyz.h berendsen.h helpers.h neighbors.h)
 
 # List of implementation files
 set(MY_MD_CPP
   hello.cpp
         verlet.cpp
         ../milestones/04/lj_direct_summation.cpp
-        xyz.cpp berendsen.cpp helpers.cpp)
+        xyz.cpp berendsen.cpp helpers.cpp neighbors.cpp)
 
 # Create a static library
 add_library(my_md_lib STATIC ${MY_MD_CPP} ${MY_MD_HEADERS})

@@ -10,4 +10,7 @@
 // Returns Kinetic Energy of atoms
 double kinetic_energy(Atoms &atoms);
 
+// Returns Temp
+double temp(std::double_t KE, int nb_atoms);
+
 #endif // MY_MD_CODE_HELPERS_H

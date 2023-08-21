@@ -8,4 +8,8 @@ double kinetic_energy(Atoms &atoms){
     return KE_arr.sum();
 }
 
+double temp(double KE, int nb_atoms){
+    return 2 * KE / (3 * nb_atoms * 8.617333e-5);
+}
+
 
