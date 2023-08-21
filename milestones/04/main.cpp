@@ -25,21 +25,23 @@ int main(int argc, char *argv[]) {
 
     Eigen::Array3Xd KE_arr = 0.5 * mass * atoms.velocities.square();
     double KE = KE_arr.sum();
-    double PE, E_tot1, E_tot2;
+    double PE, E_tot;
 
     // Calc forces and store potential energy
     PE = lj_direct_summation(atoms, epsilon, sigma);
-    E_tot1 = KE + PE;
+    E_tot = KE + PE;
 
-    // To store Energies (row 0) and diff's (row 1)
-    Eigen::Array2Xd Energies{2, nb_steps};
+    // To store Total energy as function of time
+    Eigen::ArrayXd Energies(nb_steps+1);
 
     // Variables for XYZ output
-    double out_thresh = expr;
+    double iter_out = expr / time_step; // Output position every iter_out iterations
+    double out_thresh = iter_out; // Threshold to keep track
     std::ofstream traj("traj.xyz");
 
     for (int i = 0; i < nb_steps; ++i) {
-        Energies(0, i) = E_tot1;
+        // Store total Energy
+        Energies(i) = E_tot;
 
         // Verlet predictor step (changes pos and vel)
         verlet_step1(atoms, time_step);
@@ -53,32 +55,26 @@ int main(int argc, char *argv[]) {
         // Recalculate energy
         KE_arr = 0.5 * mass * atoms.velocities.square();
         KE = KE_arr.sum();
-        E_tot2 = PE + KE;
-        double E_diff = E_tot2 - E_tot1;
-
-        if(i % 50 == 0) {
-            std::cout << E_tot1 << ' ' << E_diff << std::endl;
-        }
-        Energies(1, i) = E_diff;
-        E_tot1 = E_tot2;
+        E_tot = PE + KE;
 
         // XYZ output
         if(i > out_thresh) {
             write_xyz(traj, atoms);
-            out_thresh += expr;
+            out_thresh += iter_out;
         }
     }
 
+    // Store final energy
+    Energies(nb_steps) = E_tot;
+
     traj.close();
 
-    // Writing Energies to file
-    std::ofstream outfile("Energies.txt");
+    // Writing Energies to file with time_step in filename
+    std::string ts_string = std::to_string(time_step);
+    std::string filename = "ts_" + ts_string + "_energy.txt";
+    std::ofstream outfile(filename);
     if (outfile.is_open()) {
         outfile << Energies << std::endl;
-        double tot_diff = Energies(0, 0) - Energies(0, Energies.cols()-1);
-        outfile << "Total Energy difference: " << tot_diff << std::endl;
-        std::cout << "Total Energy difference: " << tot_diff << std::endl;
-        std::cout << "Made it." << std::endl;
         outfile.close();
     } else {
         std::cerr << "Error opening the file." << std::endl;
