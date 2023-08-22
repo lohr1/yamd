@@ -4,7 +4,6 @@
 #include "xyz.h"
 #include "helpers.h"
 #include "berendsen.h"
-//#include "gnuplot-iostream.h"
 
 #include <fstream>
 #include <iostream>

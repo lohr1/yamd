@@ -35,7 +35,7 @@ TEST(NeighborsTest, Test1) {
                  0, 0, 1, -1,
                  0, 0, 0, 0;
 
-    Atoms atoms(names, positions);
+    Atoms atoms(positions);
     NeighborList neighbor_list;
     auto &[seed, neighbors]{neighbor_list.update(atoms, 1.5)};
 
@@ -61,9 +61,9 @@ TEST(NeighborsTest, FirstAtomHasNoNeighbor) {
                  0, 0, 7, 6,
                  0, 0, 0, 0;
 
-    Atoms atoms(names, positions);
+    Atoms atoms(positions);
     NeighborList neighbor_list;
-    neighbor_list.update(atoms);
+    neighbor_list.update(atoms, 5.0);
 
     auto &[seed, neighbors]{neighbor_list.update(atoms, 5.0)};
 
@@ -91,9 +91,9 @@ TEST(NeighborsTest, LastAtomHasNoNeighbor) {
                  7, 6, 0,
                  0, 0, 0;
 
-    Atoms atoms(names, positions);
+    Atoms atoms(positions);
     NeighborList neighbor_list;
-    neighbor_list.update(atoms);
+    neighbor_list.update(atoms, 5.0);
 
     auto &[seed, neighbors]{neighbor_list.update(atoms, 5.0)};
 
@@ -120,9 +120,9 @@ TEST(NeighborsTest, AtomsHaveNoNeighbors) {
                  0, 0, 7, 6,
                  0, 0, 0, 0;
 
-    Atoms atoms(names, positions);
+    Atoms atoms(positions);
     NeighborList neighbor_list;  // this is below the smallest distance
-    neighbor_list.update(atoms);
+    neighbor_list.update(atoms, 1.0);
 
     auto &[seed, neighbors]{neighbor_list.update(atoms, 0.5)};
 
