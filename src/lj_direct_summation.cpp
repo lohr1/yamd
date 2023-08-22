@@ -1,8 +1,5 @@
 #include "lj_direct_summation.h"
-#include <iostream>
-//
-// Created by robin on 24.05.23.
-//
+
 double lj_direct_summation(Atoms &atoms, double epsilon, double sigma){
     // Directly modifies forces in atoms. Returns potential energy.
     atoms.forces.setZero(); // Forces depend only on current position
@@ -26,7 +23,6 @@ double lj_direct_summation(Atoms &atoms, double epsilon, double sigma){
             f_ij = (4 * epsilon * ((-12 * pow(sigma, 12)/pow(r, 13)) + 6 * pow(sigma, 6) / pow(r, 7))) *
                    dist_vec /r;
 
-
             atoms.forces.col(j) += f_ij;
             atoms.forces.col(i) -= f_ij;
         }
@@ -34,33 +30,3 @@ double lj_direct_summation(Atoms &atoms, double epsilon, double sigma){
     // Return potential
     return net_pot;
 }
-//
-//#include "lj_direct_summation.h"
-//
-//double lj_direct_summation(Atoms &atoms, double epsilon, double sigma) {
-//    double const sigmaPower12 = pow(sigma, 12);
-//    double const sigmaPower6 = pow(sigma, 6);
-//
-//    atoms.forces.setZero();
-//
-//    double potential_energy = 0;
-//
-//    // loop over all pairs of atom
-//    for (int i = 0; i < atoms.nb_atoms() - 1; ++i) {
-//        for (int k = i + 1; k < atoms.nb_atoms(); ++k) {
-//            // compute pair term (derivative of potential energy with respect to atom k)
-//            const Eigen::Vector3d distance_vector{atoms.positions.col(i) - atoms.positions.col(k)};
-//            const double distance = distance_vector.norm();
-//            const Eigen::Array3d term{4 * epsilon * ((-12 * sigmaPower12) / pow(distance, 13) + (6 * sigmaPower6) / pow(distance, 7) ) * (distance_vector / distance)};
-//
-//            // add it to both forces arrays
-//            atoms.forces.col(k) += term;
-//            atoms.forces.col(i) -= term;
-//
-//            // compute potential energy (leave out constant epsilon * 4 part)
-//            potential_energy += (sigmaPower12/pow(distance, 12) - sigmaPower6/pow(distance, 6));
-//        }
-//    }
-//
-//    return potential_energy * epsilon * 4;
-//}

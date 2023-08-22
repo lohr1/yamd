@@ -13,7 +13,11 @@
 
 // Note: Everyone else implemented simple calc test... then Simulation goes in milestones
 
-TEST(BerendsenRescaleTest, Forces) {
+TEST(BerendsenTest, SimulationTest){
+
+}
+
+TEST(BerendsenTest, ScalingTest) {
     // Checks Berendsen implementation against results of other scaling factor from Eq. 9 of Ch4 Lecture Notes.
     // We expect the resulting velocities to be near.
     auto[names, positions]{read_xyz("/home/robin/School/yamd/xyzs/lattice_4_1.1.xyz")};
