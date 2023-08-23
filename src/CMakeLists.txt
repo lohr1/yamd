@@ -9,7 +9,7 @@ set(MY_MD_HEADERS
 set(MY_MD_CPP
   hello.cpp
         verlet.cpp
-        ../milestones/04/lj_direct_summation.cpp
+        lj_direct_summation.cpp
         xyz.cpp berendsen.cpp helpers.cpp neighbors.cpp lj.cpp ducastelle.cpp)
 
 # Create a static library

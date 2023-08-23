@@ -1,7 +1,3 @@
-//
-// Created by robin on 24.05.23.
-//
-
 #include "lj_direct_summation.h"
 #include "verlet.h"
 #include "xyz.h"

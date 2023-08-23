@@ -14,12 +14,12 @@ int main(int argc, char *argv[]) {
     std::string xyz_file = "/home/robin/School/yamd/xyzs/cluster_923.xyz";
 
     // Directory to store data from run:
-    std::string dir = "/home/robin/School/HPC/Data/07/Determine_timestep/0.5fs/";
+    std::string dir = "/home/robin/School/HPC/Data/07/Determine_timestep/no_initial_v/1fs/";
     auto[names, positions]{read_xyz(xyz_file)};
 
     // Initialize atoms pos and vel
     Atoms atoms{positions};
-    atoms.velocities.setRandom();  // units of Angstrom / 10.18 fs
+    //atoms.velocities.setRandom();  // units of Angstrom / 10.18 fs
 
     // Generate neighbor list
     double cutoff = 10.0; // Achieves approx. 5th nearest neighbor
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 
     // Propagate system
     double time_tot = 100; // 1018 fs
-    double real_time_step = 0.5; // fs
+    double real_time_step = 1; // fs
     double time_step = real_time_step/10.18;
     //double relax_const = 1 * expr;  // No thermostat here as we want to conserve total energy
     int nb_steps = time_tot / time_step;
