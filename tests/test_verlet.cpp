@@ -33,7 +33,8 @@ TEST(VerletTest, SingleAtom) {
         verlet_step1(x, y, z, vx, vy ,vz, fx, fy, fz, timestep);
         verlet_step2(vx, vy, vz, fx, fy, fz, timestep);
     }
-    //Compute pos and vel analytically
+
+    // Calculate analytical solution:
     double t = (nb_steps) * timestep;
     // NOTE: Assumes constant force and m=1.
     double anal_x = fx * 0.5 * t*t + init_vel[0] * t + init_pos[0];
@@ -52,8 +53,8 @@ TEST(VerletTest, SingleAtom) {
     EXPECT_NEAR(vz, anal_vz, 1e-6);
 }
 
-// Multiple atom test
-TEST(VerletTest, MultipleAtom) {
+// Multiple atom test for verlet functions which take arrays as params
+TEST(VerletTest, MultipleAtomArr) {
     // Test for multiple atoms using Eigen Arrays
     Positions_t pos, i_pos;
     Velocities_t vel, i_vel;
@@ -87,6 +88,42 @@ TEST(VerletTest, MultipleAtom) {
         for(int j = 0; j < num_atoms; j++){
             EXPECT_NEAR(anal_pos(i, j), pos(i, j), 1e-6);
             EXPECT_NEAR(anal_vel(i, j), vel(i, j), 1e-6);
+        }
+    }
+}
+
+// Multiple atom test for verlet functions which take atoms as params
+TEST(VerletTest, MultipleAtomAtom){
+    std::cout << "Testing verlet atoms func";
+    // Initialize atoms:
+    int nb_atoms = 5;
+    Atoms atoms{static_cast<size_t>(nb_atoms)};
+    atoms.positions.setRandom();
+    atoms.velocities.setRandom();
+    atoms.forces.setRandom();
+
+    // Save initials (forces constant):
+    Positions_t i_pos = atoms.positions;
+    Velocities_t i_vel = atoms.velocities;
+
+    // Integrate with verlet:
+    int nb_steps = 1000;
+    double timestep = .01;
+    for (int i = 0; i < nb_steps; ++i) {
+        verlet_step1(atoms, timestep);
+        verlet_step2(atoms, timestep);
+    }
+
+    // Calculate analytical solution:
+    double t_tot = nb_steps * timestep;
+    Positions_t analytical_pos = 0.5 * atoms.forces * t_tot * t_tot + i_vel * t_tot + i_pos;
+    Velocities_t analytical_vel = atoms.forces * t_tot + i_vel;
+
+    // Compare results:
+    for(int i = 0; i < nb_atoms; i++){
+        for(int j = 0; j < 3; j++){
+            EXPECT_NEAR(atoms.positions(j, i), analytical_pos(j, i), 1e-6);
+            EXPECT_NEAR(atoms.velocities(j, i), analytical_vel(j, i), 1e-6);
         }
     }
 }
