@@ -1,13 +1,13 @@
-//
-// Created by robin on 08.05.23.
-//
+/*
+ * This file contains functions for verlet integrations steps of
+ * single atoms and multiple atoms.
+ */
 #include "verlet.h"
 #include "types.h"
-#include <iostream>
 
 void verlet_step1(double &x, double &y, double &z, double &vx, double &vy, double &vz,
                   double fx, double fy, double fz, double timestep) {
-    // Predictor step
+    // Predictor step - mass is assumed to be 1.
     vx += 0.5 * fx * timestep;
     vy += 0.5 * fy * timestep;
     vz += 0.5 * fz * timestep;

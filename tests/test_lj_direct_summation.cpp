@@ -32,37 +32,36 @@ TEST(LJDirectSummationTest, Forces) {
     constexpr double sigma = 0.3;
     constexpr double delta = 0.0001;  // difference used for numerical (finite difference) computation of forces
 
-    Atoms atoms(nb_atoms);
     srand((unsigned int) time(0)); // Seed random num generator
+
+    Atoms atoms(nb_atoms);
     atoms.positions.setRandom();  // random numbers between -1 and 1
-    atoms.positions *= 1.2;
 
     // compute and store energy of the indisturbed configuration
     double e0{lj_direct_summation(atoms, epsilon, sigma)};
     Forces_t forces0{atoms.forces};
 
-
     // loop over all atoms and compute forces from a finite differences approximation
     for (int i{0}; i < nb_atoms; ++i) {
         // loop over all Cartesian directions
-        for (int dim{0}; dim < 3; ++dim) {
+        for (int j{0}; j < 3; ++j) {
             // move atom to the right
-            atoms.positions(dim, i) += delta;
+            atoms.positions(j, i) += delta;
             double eplus{lj_direct_summation(atoms, epsilon, sigma)};
             // move atom to the left
-            atoms.positions(dim, i) -= 2 * delta;
+            atoms.positions(j, i) -= 2 * delta;
             double eminus{lj_direct_summation(atoms, epsilon, sigma)};
             // move atom back to original position
-            atoms.positions(dim, i) += delta;
+            atoms.positions(j, i) += delta;
 
             // finite-differences forces
             double fd_force{-(eplus - eminus) / (2 * delta)};
 
             // check whether finite-difference and analytic forces agree
-            if (abs(forces0(dim, i)) > 1e-10) {
-                EXPECT_NEAR(abs(fd_force - forces0(dim, i)) / forces0(dim, i), 0, 1e-5);
+            if (abs(forces0(j, i)) > 1e-10) {
+                EXPECT_NEAR(abs(fd_force - forces0(j, i)) / forces0(j, i), 0, 1e-5);
             } else {
-                EXPECT_NEAR(fd_force, forces0(dim, i), 1e-10);
+                EXPECT_NEAR(fd_force, forces0(j, i), 1e-10);
             }
         }
     }

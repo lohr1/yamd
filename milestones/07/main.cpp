@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     neighbor_list.update(atoms, cutoff);
 
     // Propagate system
-    double time_tot = 100; // 1018 fs
+    double time_tot = 500; // times 10.18 fs to get real time
     double real_time_step = 1; // fs
     double time_step = real_time_step/10.18;
     //double relax_const = 1 * expr;  // No thermostat here as we want to conserve total energy
@@ -90,11 +90,11 @@ int main(int argc, char *argv[]) {
     std::ofstream outputFile(dir + "energy_data.csv");
 
     // Write header
-    outputFile << "Time,TotalEnergy" << std::endl;
+    outputFile << "Time(fs),TotalEnergy" << std::endl;
 
     // Write data to the file
     for (int i = 0; i <= nb_steps; ++i) {
-        outputFile << i * time_step << "," << Energy(i) << std::endl;
+        outputFile << i * real_time_step << "," << Energy(i) << std::endl;
     }
 
     // Close the file
