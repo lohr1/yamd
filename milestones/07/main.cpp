@@ -1,3 +1,15 @@
+/*
+ * This program was used to equilibrate Mackay icosahedra and then test the effect
+ * of different time steps on the total energy.
+ *
+ * Simulation units:
+ * Length: Angstroms
+ * Energy: eV
+ * Mass: g_mol
+ *
+ * -> 1 Time unit in code is 10.18 fs
+ */
+
 #include "ducastelle.h"
 #include "neighbors.h"
 #include "verlet.h"
@@ -8,18 +20,9 @@
 #include <fstream>
 #include <iostream>
 
-int main(int argc, char *argv[]) {
-    // Using clusters provided, determine good time step for EAM potential
-    // by monitoring total energy during simulation
-    std::string xyz_file = "/home/robin/School/yamd/xyzs/cluster_923.xyz";
 
-    // Directory to store data from run:
-    std::string dir = "/home/robin/School/HPC/Data/07/Determine_timestep/no_initial_v/1fs/";
-    auto[names, positions]{read_xyz(xyz_file)};
 
-    // Initialize atoms pos and vel
-    Atoms atoms{positions};
-    //atoms.velocities.setRandom();  // units of Angstrom / 10.18 fs
+void equilibrate_EAM(Atoms& atoms, double target_temp, const std::string& dir){
 
     // Generate neighbor list
     double cutoff = 10.0; // Achieves approx. 5th nearest neighbor
@@ -27,12 +30,15 @@ int main(int argc, char *argv[]) {
     neighbor_list.update(atoms, cutoff);
 
     // Propagate system
-    double time_tot = 500; // times 10.18 fs to get real time
-    double real_time_step = 1; // fs
+    double time_tot = 200; // times 10.18 fs to get real time
+    double real_time_step = 1; // in fs
     double time_step = real_time_step/10.18;
-    //double relax_const = 1 * expr;  // No thermostat here as we want to conserve total energy
+    double real_relax_const_pico = 0.1; // relaxation constant in picoseconds
+    double tau = (real_relax_const_pico * 1000)/10.18; // relaxation constant converted to sim units (see top comment)
     int nb_steps = time_tot / time_step;
-    int N = atoms.nb_atoms();
+    int nb_atoms = atoms.nb_atoms();
+
+    std::cout << atoms.velocities.col(0);
 
     // Calc potential energy with ducastelle. Resulting forces stored in atoms.
     double PE = ducastelle(atoms, neighbor_list);
@@ -43,7 +49,7 @@ int main(int argc, char *argv[]) {
 
     // Array to monitor total energy
     Eigen::ArrayXd Energy(nb_steps+1);
-
+    Eigen::ArrayXd Temp (nb_steps+1);
 
     // Variables for XYZ output
     double iter_out = time_tot / 100; // Output position every iter_out iterations
@@ -51,12 +57,13 @@ int main(int argc, char *argv[]) {
 
     // Trajectory file:
     std::ofstream traj(dir + "trajectory.xyz");
-    // First frame
+    // Write initial frame
     write_xyz(traj, atoms);
 
     for (int i = 0; i < nb_steps; ++i) {
-        // Monitor Energies
+        // Monitor values
         Energy(i) = E;
+        Temp(i) = temp(KE, nb_atoms);
 
         // Verlet predictor step (changes pos and vel)
         verlet_step1(atoms, time_step);
@@ -67,8 +74,8 @@ int main(int argc, char *argv[]) {
         // Verlet step 2 updates velocities, assuming the new forces are present:
         verlet_step2(atoms, time_step);
 
-        // Berendsen velocity rescaling - Not this time: we want to conserve total energy
-        //berendsen_thermostat(atoms, 300, time_step, relax_const);
+        // Berendsen velocity rescaling
+        berendsen_thermostat(atoms, target_temp, time_step, tau);
 
         // Calc new KE and total E
         KE = kinetic_energy(atoms);
@@ -81,24 +88,70 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Save final E
+    // Save final values for monitoring
     Energy(nb_steps) = E;
+    Temp(nb_steps) = temp(KE, nb_atoms);
 
     traj.close();
 
-    // Open a file for writing
+    // Open files for data
     std::ofstream outputFile(dir + "energy_data.csv");
+    std::ofstream temp_outputFile(dir + "temp_data.csv");
 
-    // Write header
+
+    // Write headers
     outputFile << "Time(fs),TotalEnergy" << std::endl;
+    temp_outputFile << "Time(fs),Temp(K)" << std::endl;
+
 
     // Write data to the file
-    for (int i = 0; i <= nb_steps; ++i) {
-        outputFile << i * real_time_step << "," << Energy(i) << std::endl;
+    for (int i = 0; i < nb_steps+1; ++i) {
+        outputFile << (i) * real_time_step << "," << Energy(i) << std::endl;
+        temp_outputFile << (i) * real_time_step << "," << Temp(i) << std::endl;
     }
 
-    // Close the file
+    // Close the data files
     outputFile.close();
+    temp_outputFile.close();
+
+    // Write final configuration to XYZ file:
+    std::ofstream final_xyz_file(dir + "final_state.xyz");
+    write_xyz(final_xyz_file, atoms);
+    final_xyz_file.close();
+}
+
+int main(int argc, char *argv[]) {
+    // Path to xyz file for this run:
+    std::string xyz_file = "/home/robin/School/HPC/Data/07/Equilibration/cluster_3871/final_state.xyz";
+    // Directory to store data from this run:
+    std::string dir = "/home/robin/School/HPC/Data/07/Equilibration/cluster_3871/2nd(1fs)/";
+
+    // There are 2 starting cases - with or without velocities.
+    // So I use an if block and must therefore declare these var's outside.
+    std::vector<std::string> names;
+    Eigen::Array3Xd positions;
+    Eigen::Array3Xd velocities;
+
+    if (xyz_file.find("cluster_") != std::string::npos) {
+        // We are working with an initial icosahedron (no velocities)
+        std::tie(names, positions) = read_xyz(xyz_file);
+    }
+    else{
+        // We are "warm" starting - so read velocities
+        std::tie(names, positions, velocities) = read_xyz_with_velocities(xyz_file);
+    }
+
+    if(positions.cols() != velocities.cols()){
+        velocities = Eigen::Array3Xd(3, positions.cols());
+    }
+
+    // Initialize atoms pos and vel
+    Atoms atoms{positions, velocities};
+
+    // Target temperature for equilibration
+    double target_temp = 300;
+
+    equilibrate_EAM(atoms,target_temp,dir);
 
     return 0;
 }

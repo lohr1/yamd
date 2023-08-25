@@ -13,4 +13,7 @@ double kinetic_energy(Atoms &atoms);
 // Returns Temp
 double temp(std::double_t KE, int nb_atoms);
 
+// Returns average velocity of a particle at given temp
+double average_velocity(double temp);
+
 #endif // MY_MD_CODE_HELPERS_H
