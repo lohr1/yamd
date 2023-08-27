@@ -8,7 +8,8 @@
 #include "atoms.h"
 
 // Returns Kinetic Energy of atoms
-double kinetic_energy(Atoms &atoms);
+double kinetic_energy(Atoms& atoms);
+double kinetic_energy(Atoms& atoms, double mass);
 
 // Returns Temp
 double temp(std::double_t KE, int nb_atoms);
