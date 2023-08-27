@@ -20,6 +20,8 @@
 #include <fstream>
 #include <iostream>
 
+const double Au_molar_mass = 196.96657; // g/mol, since time is in units of 10.18 fs
+
 
 void gen_ET_point(Atoms& atoms, double dQ, const std::string& dir){
     /*
@@ -31,7 +33,7 @@ void gen_ET_point(Atoms& atoms, double dQ, const std::string& dir){
 
 }
 
-void test_eq(Atoms& atoms, double t_tot, double real_ts, double mass, const std::string& dir){
+void test_eq(Atoms& atoms, double t_tot, double real_ts, const std::string& dir){
     /*
      * Runs simulation with thermostat turned off and saves
      * temp data/trajectory.
@@ -52,7 +54,7 @@ void test_eq(Atoms& atoms, double t_tot, double real_ts, double mass, const std:
     double PE = ducastelle(atoms, neighbor_list);
 
     // Calc KE and total E
-    double KE = kinetic_energy(atoms, mass);
+    double KE = kinetic_energy(atoms);
     double E = PE + KE;
 
     // Array to monitor total energy
@@ -83,7 +85,7 @@ void test_eq(Atoms& atoms, double t_tot, double real_ts, double mass, const std:
         verlet_step2(atoms, time_step);
 
         // Calc new KE and total E
-        KE = kinetic_energy(atoms, mass);
+        KE = kinetic_energy(atoms);
         E = PE + KE;
 
         // XYZ output
@@ -121,7 +123,7 @@ void test_eq(Atoms& atoms, double t_tot, double real_ts, double mass, const std:
 }
 
 
-void equilibrate_EAM(Atoms& atoms, double target_temp, double time_eq, double real_ts, double tau_eq_pico, const double mass, const std::string& dir){
+void equilibrate_EAM(Atoms& atoms, double target_temp, double time_eq, double real_ts, double tau_eq_pico, const std::string& dir){
     /*
      * Brings atoms object to target temp (EAM potential).
      * Writes trajectory, data, and param files to dir.
@@ -147,7 +149,7 @@ void equilibrate_EAM(Atoms& atoms, double target_temp, double time_eq, double re
     double PE = ducastelle(atoms, neighbor_list);
 
     // Calc KE and total E
-    double KE = kinetic_energy(atoms, mass);
+    double KE = kinetic_energy(atoms);
     double E = PE + KE;
 
     // Array to monitor total energy
@@ -178,10 +180,10 @@ void equilibrate_EAM(Atoms& atoms, double target_temp, double time_eq, double re
         verlet_step2(atoms, time_step);
 
         // Berendsen velocity rescaling
-        berendsen_thermostat(atoms, mass, target_temp, time_step, tau);
+        berendsen_thermostat(atoms, target_temp, time_step, tau);
 
         // Calc new KE and total E
-        KE = kinetic_energy(atoms, mass);
+        KE = kinetic_energy(atoms);
         E = PE + KE;
 
         // XYZ output
@@ -250,7 +252,6 @@ int main(int argc, char *argv[]) {
     // Also time over which avg temp is calculated
     double real_tau_relax = 200; 
 
-    const double Au_molar_mass = 196.96657; // Since time is in units of 10.18 fs
 
     // For initial cluster:
 
@@ -258,14 +259,16 @@ int main(int argc, char *argv[]) {
 //     Atoms atoms{positions};
 //     atoms.velocities.setRandom();
 //     atoms.velocities *= 0.4;
+//     atoms.masses.setConstant(Au_molar_mass);
 
      // Otherwise:
 
     auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
     Atoms atoms{positions, velocities};
+    atoms.masses.setConstant(Au_molar_mass);
 
 
-    equilibrate_EAM(atoms,target_temp, time_eq, real_time_step, tau_eq_pico, Au_molar_mass, dir);
+    equilibrate_EAM(atoms,target_temp, time_eq, real_time_step, tau_eq_pico, dir);
 
     // Now test equilibration by running without thermostat
 

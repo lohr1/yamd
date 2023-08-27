@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
 
     // Params
     double mass = 1.0;
+    atoms.masses.setConstant(mass);
     // LJ params
     double epsilon = 1.0;
     double sigma = 1.0;
