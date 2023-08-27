@@ -8,5 +8,6 @@
 using Positions_t = Eigen::Array3Xd;
 using Velocities_t = Eigen::Array3Xd;
 using Forces_t = Eigen::Array3Xd;
+using Masses_t = Eigen::Array3Xd;
 
 #endif // MY_MD_CODE_TYPES_H
