@@ -94,7 +94,6 @@ TEST(VerletTest, MultipleAtomArr) {
 
 // Multiple atom test for verlet functions which take atoms as params
 TEST(VerletTest, MultipleAtomAtom){
-    std::cout << "Testing verlet atoms func";
     // Initialize atoms:
     int nb_atoms = 5;
     Atoms atoms{static_cast<size_t>(nb_atoms)};

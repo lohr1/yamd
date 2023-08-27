@@ -38,6 +38,20 @@ class Atoms {
     size_t nb_atoms() const {
         return positions.cols();
     }
+
+    void resize(int size){
+        positions.conservativeResize(Eigen::NoChange,size);
+        velocities.conservativeResize(Eigen::NoChange,size);
+        forces.conservativeResize(Eigen::NoChange,size);
+        masses.conservativeResize(Eigen::NoChange,size);
+    }
+    
+    void setRandom(){
+        positions.setRandom();
+        velocities.setRandom();
+        forces.setRandom();
+        masses.setRandom();
+    }
 };
 
 
