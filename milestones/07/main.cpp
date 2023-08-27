@@ -19,7 +19,9 @@
 
 #include <fstream>
 #include <iostream>
+#include <experimental/filesystem>
 
+namespace fs = std::experimental::filesystem;  // For creating directories
 
 void gen_ET_point(Atoms& atoms, double dQ, const std::string& dir){
     /*
@@ -264,9 +266,12 @@ int main(int argc, char *argv[]) {
     auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
     Atoms atoms{positions, velocities};
 
-
-    equilibrate_EAM(atoms,target_temp, time_eq, real_time_step, tau_eq_pico, Au_molar_mass, dir);
-
+    // Equilibrate until target temp sufficiently near actual temp
+    double actual_temp = temp(kinetic_energy(atoms, Au_molar_mass), atoms.nb_atoms());
+    while(abs(actual_temp - target_temp) > 20) {
+        equilibrate_EAM(atoms, target_temp, time_eq, real_time_step,
+                        tau_eq_pico, Au_molar_mass, dir);
+    }
     // Now test equilibration by running without thermostat
 
     double t_therm_off = 300; // Times 10.18 fs for real time
