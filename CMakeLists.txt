@@ -49,6 +49,9 @@ if(NOT Eigen3_FOUND)
   find_package(Eigen3 3.4.0 REQUIRED MODULE EXACT)
 endif()
 
+find_package(MPI REQUIRED)
+include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+
 # Option to turn ON/OFF MPI
 option(USE_MPI "Activate MPI")
 
