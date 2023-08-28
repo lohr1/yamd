@@ -9,7 +9,7 @@
 
 // Returns Kinetic Energy of atoms
 double kinetic_energy(Atoms& atoms);
-double kinetic_energy(Atoms& atoms, double mass);
+double kinetic_energy_local(Atoms& atoms, int nb_local);
 
 // Returns Temp
 double temp(std::double_t KE, int nb_atoms);

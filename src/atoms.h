@@ -14,6 +14,13 @@ class Atoms {
     Forces_t forces;
     Masses_t masses;
 
+    Atoms(const Atoms& atoms){
+        positions = atoms.positions;
+        velocities = atoms.velocities;
+        forces = atoms.forces;
+        masses = atoms.masses;
+    }
+
     Atoms(size_t i) : positions{3, i}, velocities{3, i}, forces{3, i}, masses{3, i} {
         positions.setZero();
         velocities.setZero();
@@ -22,14 +29,14 @@ class Atoms {
     }
 
     Atoms(const Positions_t &p) :
-          positions{p}, velocities{3, p.cols()}, forces{3, p.cols()} {
+          positions{p}, velocities{3, p.cols()}, forces{3, p.cols()}, masses{3, p.cols()} {
         velocities.setZero();
         forces.setZero();
         masses.setZero();
     }
 
     Atoms(const Positions_t &p, const Velocities_t &v) :
-          positions{p}, velocities{v}, forces{3, p.cols()} {
+          positions{p}, velocities{v}, forces{3, p.cols()}, masses{3, p.cols()} {
         assert(p.cols() == v.cols());
         forces.setZero();
         masses.setZero();
@@ -51,6 +58,15 @@ class Atoms {
         velocities.setRandom();
         forces.setRandom();
         masses.setRandom();
+    }
+
+    /*
+     * Returns an atoms object of just the first num atoms
+     */
+    Atoms just_the_first(int num){
+        Atoms cp{*this};
+        cp.resize(num);
+        return cp;
     }
 };
 

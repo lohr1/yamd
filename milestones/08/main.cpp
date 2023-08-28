@@ -12,120 +12,182 @@
 #include <fstream>
 #include <iostream>
 
-#include "mpi.h"
 
-void propagate(Atoms& atoms, double time_tot_fs, double time_step_fs, double tau_pico,){
+#include "mpi.h"
+#include "mpi_support.h"
+#include "domain.h"
+
+const double Au_molar_mass = 196.96657; // g/mol, since time is in units of 10.18 fs
+
+void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, double time_step_fs, const std::string& dir){
     /*
-     * Evolves system through time
+     * Evolves system through time, making necessary adjustments for domain decomposition.
+     *
+     * Domain decomp should already be enabled before calling, and should be
+     * disabled after calling.
      */
     // Generate neighbor list
     double cutoff = 10.0; // Achieves approx. 5th nearest neighbor
     NeighborList neighbor_list;
     neighbor_list.update(atoms, cutoff);
 
-    // Propagate system
+    // Convert time variables to sim units
     double time_tot = time_tot_fs / 10.18; // times 10.18 fs to get real time
     double time_step = time_step_fs /10.18;
-    double tau_femto = tau_pico * 1000;
-    double tau =
-        tau_femto /10.18; // relaxation constant converted to sim units (see top comment)
     int nb_steps = time_tot / time_step;
-    int nb_atoms = atoms.nb_atoms();
 
-    // Calc potential energy with ducastelle. Resulting forces stored in atoms.
-    double PE = ducastelle(atoms, neighbor_list);
+    // Update ghosts, saving number of local atoms
+    int nb_local = atoms.nb_atoms();
+    double border_width = 2 * cutoff;
+    domain.update_ghosts(atoms, border_width);
 
-    // Calc KE and total E
-    double KE = kinetic_energy(atoms);
-    double E = PE + KE;
+    // Calc forces with ghost atoms, but save only PE of local atoms:
+    double PE_local = ducastelle_domain_decomp(atoms, nb_local, neighbor_list);
+
+    // Calc KE of local atoms
+    double KE_local = kinetic_energy_local(atoms, nb_local);
+    double E_local = PE_local + KE_local;
+
+    // Calculate total energy with MPI
+    double E_total = MPI::allreduce(E_local, MPI_SUM, MPI_COMM_WORLD);
 
     // Array to monitor total energy
     Eigen::ArrayXd Energy(nb_steps+1);
-    Eigen::ArrayXd Temp (nb_steps+1);
 
-    // Variables for XYZ output
-    double iter_out = time_tot / 100; // Output position every iter_out iterations
-    double out_thresh = iter_out; // Threshold to count iter_out's
+    // Process of rank 0 will handle file IO
+    int rank = MPI::comm_rank(MPI_COMM_WORLD);
+    // Variables for keeping track of when to save a frame
+    double iter_out, out_thresh;
+    std::ofstream trajectory_file;
+    if(rank == 0) {
+        iter_out =
+            time_tot / 100; // Output position every iter_out iterations
+        out_thresh = iter_out; // Threshold to count iter_out's
 
-    // Trajectory file:
-    std::ofstream traj(dir + "trajectory.xyz");
-    // Write initial frame
-    write_xyz(traj, atoms);
+        // Recover replicated state:
+        domain.disable(atoms);
+
+        // Create trajectory file
+        trajectory_file = std::ofstream(dir + "trajectory.xyz");
+        // Write initial frame
+        write_xyz(trajectory_file, atoms);
+
+        // Go back into decomposed state and repopulate ghosts
+        domain.enable(atoms);
+        domain.update_ghosts(atoms, border_width);
+    }
 
     for (int i = 0; i < nb_steps; ++i) {
-        // Monitor values
-        Energy(i) = E;
-        Temp(i) = temp(KE, nb_atoms);
+        // Monitor total energy
+        Energy(i) = E_total;
 
         // Verlet predictor step (changes pos and vel)
         verlet_step1(atoms, time_step);
 
         // Update forces with new positions
-        PE = ducastelle(atoms, neighbor_list);
+        PE_local = ducastelle_domain_decomp(atoms, nb_local, neighbor_list);
 
         // Verlet step 2 updates velocities, assuming the new forces are present:
         verlet_step2(atoms, time_step);
 
-        // Berendsen velocity rescaling
-        berendsen_thermostat(atoms, target_temp, time_step, tau);
+        // Calc new KE_local and E_local
+        KE_local = kinetic_energy_local(atoms, nb_local);
+        E_local = PE_local + KE_local;
 
-        // Calc new KE and total E
-        KE = kinetic_energy(atoms);
-        E = PE + KE;
+        // Calc new E_total
+        E_total = MPI::allreduce(E_local, MPI_SUM, MPI_COMM_WORLD);
 
         // XYZ output
-        if(i > out_thresh) {
-            write_xyz(traj, atoms);
-            out_thresh += iter_out;
+        if(rank == 0) {
+            if(i > out_thresh) {
+                // Write a frame
+                domain.disable(atoms);
+
+                write_xyz(trajectory_file, atoms);
+
+                domain.enable(atoms);
+                domain.update_ghosts(atoms, border_width);
+
+                // Increment the output threshold counter
+                out_thresh += iter_out;
+            }
         }
+        // Exchange atoms between subdomains after each step
+        domain.exchange_atoms(atoms);
     }
 
-    // Save final values for monitoring
-    Energy(nb_steps) = E;
-    Temp(nb_steps) = temp(KE, nb_atoms);
+    // Save final energy
+    Energy(nb_steps) = E_total;
 
-    traj.close();
+    if(rank == 0) {
+        trajectory_file.close();
 
-    // Open files for data
-    std::ofstream outputFile(dir + "energy_data.csv");
-    std::ofstream temp_outputFile(dir + "temp_data.csv");
+        // Open files for data
+        std::ofstream outputFile(dir + "energy_data.csv");
 
+        // Write headers
+        outputFile << "Time(fs),TotalEnergy" << std::endl;
 
-    // Write headers
-    outputFile << "Time(fs),TotalEnergy" << std::endl;
-    temp_outputFile << "Time(fs),Temp(K)" << std::endl;
+        // Write data to the file
+        for (int i = 0; i < nb_steps + 1; ++i) {
+            outputFile << (i)*time_step_fs << "," << Energy(i) << std::endl;
+        }
 
+        // Close the data files
+        outputFile.close();
 
-    // Write data to the file
-    for (int i = 0; i < nb_steps+1; ++i) {
-        outputFile << (i) *time_step_fs << "," << Energy(i) << std::endl;
-        temp_outputFile << (i) *time_step_fs << "," << Temp(i) << std::endl;
+        // Write final configuration to XYZ file
+        // in case we want to start where we left off
+        std::ofstream final_xyz_file(dir + "final_state.xyz");
+        domain.disable(atoms);
+        write_xyz(final_xyz_file, atoms);
+        final_xyz_file.close();
+        domain.enable(atoms);
+
+        // Write params to a text file
+        std::ofstream paramFile(dir + "params.txt");
+        paramFile << "time_tot: " << time_tot << std::endl;
+        paramFile << "time_step_fs: " << time_step_fs << std::endl;
+        paramFile << "time_step: " << time_step << std::endl;
+        paramFile << "nb_steps: " << nb_steps << std::endl;
+        paramFile.close();
     }
-
-    // Close the data files
-    outputFile.close();
-    temp_outputFile.close();
-
-    // Write final configuration to XYZ file:
-    std::ofstream final_xyz_file(dir + "final_state.xyz");
-    write_xyz(final_xyz_file, atoms);
-    final_xyz_file.close();
-
-    // Write params to a text file
-    std::ofstream paramFile(dir + "params.txt");
-    paramFile << "time_tot: " << time_tot <<  std::endl;
-    paramFile << "time_step_fs: " << time_step_fs <<  std::endl;
-    paramFile << "time_step: " << time_step <<  std::endl;
-    paramFile << "tau_pico: " << tau_pico <<  std::endl;
-    paramFile << "tau: " << tau <<  std::endl;
-    paramFile << "nb_steps: " << nb_steps << std::endl;
-    paramFile.close();
 }
 
 int main(int argc, char *argv[]) {
+    // Initial setup which doesn't require MPI:
+    std::string xyz_file = "/home/robin/School/yamd/xyzs/cluster_3871.xyz";
+    std::string out_dir = "/home/robin/School/HPC/Data/08/DomainDecomp/cluster_3871/";
+
+    // Time parameters in real units
+    double time_fs = 1e5;
+    double timestep_fs = 1;
+
+    // Init atoms
+    auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
+    Atoms atoms{positions, velocities};
+    atoms.masses.setConstant(Au_molar_mass);
+
+
+    // Define domain dimensions with atoms positions extrema plus some 2 Angstroms of wiggle room
+    Eigen::Array3d domain_lengths(3);
+    for(int i = 0; i < 3; i++){
+        domain_lengths(i) = atoms.positions.row(i).maxCoeff() - atoms.positions.row(i).minCoeff() + 2;
+    }
+
+    // Initialize MPI
     MPI_Init(&argc, &argv);
-    // Code goes here - MPI comm can be used
 
+    // Init domain
+    Domain domain(MPI_COMM_WORLD, domain_lengths, {1, 1, 4}, {0, 0, 1});
 
+    // Decompose atoms into subdomains
+    domain.enable(atoms);
+
+    // Run simulation
+    propagate_domain(domain, atoms, time_fs, timestep_fs, out_dir);
+
+    domain.disable(atoms);
     MPI_Finalize();
+    return 0;
 }
