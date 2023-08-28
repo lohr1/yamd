@@ -14,7 +14,6 @@ double lj_cutoff_summation(Atoms &atoms, double cutoff, double epsilon, double s
     // Modifies forces directly in atoms. Returns total potential.
     atoms.forces.setZero(); // Forces depend only on current position
     double net_pot = 0;
-    int n = atoms.nb_atoms();
     double r;
     Eigen::Array3d pos_i, pos_j, r_ij, f_ij;
 

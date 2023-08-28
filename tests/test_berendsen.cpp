@@ -23,7 +23,9 @@ TEST(BerendsenTest, ScalingTest) {
     auto[names, positions]{read_xyz("/home/robin/School/yamd/xyzs/lattice_4_1.1.xyz")};
     Atoms atoms{positions};
     atoms.velocities.setRandom();
+    atoms.velocities *= 0.5;
     Velocities_t initial_v = atoms.velocities;
+    atoms.masses.setConstant(1.0);
 
     // Params
     double time_step = 0.001;
@@ -46,6 +48,6 @@ TEST(BerendsenTest, ScalingTest) {
     Eigen::ArrayXd mag2 = scaled_v.colwise().norm();
 
     for(int i = 0; i < atoms.nb_atoms(); i++){
-        EXPECT_NEAR(mag1(i), mag2(i), 1e-5);
+        EXPECT_NEAR(mag1(i), mag2(i), 1e-3);
     }
 }

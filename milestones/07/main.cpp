@@ -93,7 +93,7 @@ void test_eq(Atoms& atoms, double t_tot, double real_ts, const std::string& dir)
             write_xyz(traj, atoms);
             out_thresh += iter_out;
         }
-        
+
         // Update neighbor_list with new positions
         neighbor_list.update(atoms,cutoff);
     }
@@ -194,6 +194,9 @@ void equilibrate_EAM(Atoms& atoms, double target_temp, double time_eq, double re
             write_xyz(traj, atoms);
             out_thresh += iter_out;
         }
+
+        // Update neighbor_list with new positions
+        neighbor_list.update(atoms,cutoff);
     }
 
     // Save final values for monitoring
@@ -243,9 +246,9 @@ int main(int argc, char *argv[]) {
     // Path to xyz file for this run:
     std::string xyz_file = "/home/robin/School/HPC/Data/07/Equilibration/cluster_3871/final_state.xyz";
     // Directory to store data from this run:
-    std::string dir = "/home/robin/School/HPC/Data/07/Equilibration/cluster_3871/longer_eq/";
+    std::string dir = "/home/robin/School/HPC/Data/08/DomainDecomp/quick_test_07/";
 
-    double time_eq = 800; // Times 10.18 fs for real time
+    double time_eq = 100; // Times 10.18 fs for real time
     double tau_eq_pico = 1; // Times 1000 for fs
     double real_time_step = 1; // fs
     double target_temp = 300; // K (for equilibration only)
@@ -275,7 +278,7 @@ int main(int argc, char *argv[]) {
 
     // Now test equilibration by running without thermostat
 
-    double t_therm_off = 300; // Times 10.18 fs for real time
-    test_eq(atoms,t_therm_off,real_time_step, Au_molar_mass, dir);
+//    double t_therm_off = 300; // Times 10.18 fs for real time
+//    test_eq(atoms,t_therm_off,real_time_step, dir);
     return 0;
 }

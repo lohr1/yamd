@@ -4,6 +4,7 @@
  */
 #include "verlet.h"
 #include "types.h"
+#include <iostream>
 
 void verlet_step1(double &x, double &y, double &z, double &vx, double &vy, double &vz,
                   double fx, double fy, double fz, double timestep) {
@@ -37,12 +38,16 @@ void verlet_step2(Velocities_t &velocities, const Forces_t &forces, double times
 }
 
 void verlet_step1(Atoms &atoms, double timestep){
+    // Assumes all masses are identical
     // Predictor step
-    atoms.velocities += 0.5 * atoms.forces * timestep / atoms.masses;
+    double mass = atoms.masses(0);
+    atoms.velocities += 0.5 * atoms.forces * timestep / mass;
     atoms.positions += atoms.velocities * timestep;
 }
 
 void verlet_step2(Atoms &atoms, double timestep){
+    // Assumes all masses are identical
     // Assuming new forces in params
-    atoms.velocities += 0.5 * atoms.forces * timestep / atoms.masses;
+    double mass = atoms.masses(0);
+    atoms.velocities += 0.5 * atoms.forces * timestep / mass;
 }

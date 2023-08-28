@@ -1,4 +1,5 @@
 #include "atoms.h"
+#include <iostream>
 
 // Value for boltzmann constant in eV/K
 const double k_b = 8.617333e-5;

@@ -1,5 +1,7 @@
 /*
  * Test file for verlet integrator of single and multiple atoms.
+ *
+ * Note that in these tests all masses are assumed to be equal to 1.
  */
 #include "verlet.h"
 #include "types.h"

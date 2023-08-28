@@ -19,7 +19,7 @@
 
 const double Au_molar_mass = 196.96657; // g/mol, since time is in units of 10.18 fs
 
-void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, double time_step_fs, const std::string& dir){
+inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, double time_step_fs, const std::string& dir){
     /*
      * Evolves system through time, making necessary adjustments for domain decomposition.
      *
@@ -41,80 +41,123 @@ void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, double t
     double border_width = 2 * cutoff;
     domain.update_ghosts(atoms, border_width);
 
+
     // Calc forces with ghost atoms, but save only PE of local atoms:
     double PE_local = ducastelle_domain_decomp(atoms, nb_local, neighbor_list);
 
+
     // Calc KE of local atoms
     double KE_local = kinetic_energy_local(atoms, nb_local);
+
     double E_local = PE_local + KE_local;
+
 
     // Calculate total energy with MPI
     double E_total = MPI::allreduce(E_local, MPI_SUM, MPI_COMM_WORLD);
+
 
     // Array to monitor total energy
     Eigen::ArrayXd Energy(nb_steps+1);
 
     // Process of rank 0 will handle file IO
     int rank = MPI::comm_rank(MPI_COMM_WORLD);
+
     // Variables for keeping track of when to save a frame
     double iter_out, out_thresh;
     std::ofstream trajectory_file;
+
+    // Create trajectory output file
+    // Recover replicated state:
+    domain.disable(atoms);
     if(rank == 0) {
         iter_out =
             time_tot / 100; // Output position every iter_out iterations
         out_thresh = iter_out; // Threshold to count iter_out's
 
-        // Recover replicated state:
-        domain.disable(atoms);
-
         // Create trajectory file
         trajectory_file = std::ofstream(dir + "trajectory.xyz");
         // Write initial frame
         write_xyz(trajectory_file, atoms);
-
-        // Go back into decomposed state and repopulate ghosts
-        domain.enable(atoms);
-        domain.update_ghosts(atoms, border_width);
     }
 
+    // Go back into decomposed state and repopulate ghosts
+    domain.enable(atoms);
+    domain.update_ghosts(atoms, border_width);
+
+    Eigen::ArrayXd pos_before;
+
+
     for (int i = 0; i < nb_steps; ++i) {
+
         // Monitor total energy
         Energy(i) = E_total;
 
         // Verlet predictor step (changes pos and vel)
         verlet_step1(atoms, time_step);
 
+//        int frame = 3;
+//        if(i== frame - 1){
+//            pos_before = atoms.positions.row(0);
+//        }
+//        if(i == frame){
+//            Eigen::ArrayXd x_vels = atoms.positions.row(0);
+//            for(int j = 0; j < nb_local; j++){
+//                std::cout << "Atom: " << j
+//                          << " Delta X: " << x_vels(j) - pos_before(j) << std::endl;
+//            }
+//            break;
+//        }
+
+
         // Update forces with new positions
         PE_local = ducastelle_domain_decomp(atoms, nb_local, neighbor_list);
 
+
         // Verlet step 2 updates velocities, assuming the new forces are present:
         verlet_step2(atoms, time_step);
+
+//        Eigen::ArrayXd x_vels = atoms.velocities.row(0);
+//        for(int i = 0; i < nb_local; i++){
+//            if(x_vels(i) > 400)
+//                std::cout << "Atom: " << i << " X-Velocity: " << x_vels << std::endl;
+//        }
 
         // Calc new KE_local and E_local
         KE_local = kinetic_energy_local(atoms, nb_local);
         E_local = PE_local + KE_local;
 
+
         // Calc new E_total
         E_total = MPI::allreduce(E_local, MPI_SUM, MPI_COMM_WORLD);
 
-        // XYZ output
-        if(rank == 0) {
-            if(i > out_thresh) {
-                // Write a frame
-                domain.disable(atoms);
-
+//        // XYZ output
+        if(i > out_thresh) {
+            // Write a frame
+            domain.disable(atoms);
+            if(rank == 0) {
                 write_xyz(trajectory_file, atoms);
-
-                domain.enable(atoms);
-                domain.update_ghosts(atoms, border_width);
 
                 // Increment the output threshold counter
                 out_thresh += iter_out;
             }
+            domain.enable(atoms);
+            domain.update_ghosts(atoms, border_width);
         }
-        // Exchange atoms between subdomains after each step
+        // Exchange atoms between subdomains after each step (Removes ghosts)
         domain.exchange_atoms(atoms);
+
+        // Update num local atoms
+        nb_local = atoms.nb_atoms();
+        // Repopulate ghosts
+        domain.update_ghosts(atoms,border_width);
+
+
+        // Update neighborlist
+        neighbor_list.update(atoms,cutoff);
+
     }
+
+    std::cout << "Left loop" << std::endl;
 
     // Save final energy
     Energy(nb_steps) = E_total;
@@ -164,22 +207,28 @@ int main(int argc, char *argv[]) {
     double timestep_fs = 1;
 
     // Init atoms
-    auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
-    Atoms atoms{positions, velocities};
+//    auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
+//    Atoms atoms{positions, velocities};
+//    atoms.masses.setConstant(Au_molar_mass);
+
+    auto[names, positions]{read_xyz(xyz_file)};
+    Atoms atoms{positions};
     atoms.masses.setConstant(Au_molar_mass);
 
+    double cutoff = 10.0;
 
-    // Define domain dimensions with atoms positions extrema plus some 2 Angstroms of wiggle room
+
+    // Define domain dimensions with atoms positions extrema plus wiggle room to keep cluster from interacting with itself
     Eigen::Array3d domain_lengths(3);
     for(int i = 0; i < 3; i++){
-        domain_lengths(i) = atoms.positions.row(i).maxCoeff() - atoms.positions.row(i).minCoeff() + 2;
+        domain_lengths(i) = atoms.positions.row(i).maxCoeff() - atoms.positions.row(i).minCoeff() + 10.1;
     }
 
     // Initialize MPI
     MPI_Init(&argc, &argv);
 
     // Init domain
-    Domain domain(MPI_COMM_WORLD, domain_lengths, {1, 1, 4}, {0, 0, 1});
+    Domain domain(MPI_COMM_WORLD, domain_lengths, {1, 1, 1}, {1, 1, 1});
 
     // Decompose atoms into subdomains
     domain.enable(atoms);
