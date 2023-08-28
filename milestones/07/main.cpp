@@ -93,6 +93,9 @@ void test_eq(Atoms& atoms, double t_tot, double real_ts, const std::string& dir)
             write_xyz(traj, atoms);
             out_thresh += iter_out;
         }
+        
+        // Update neighbor_list with new positions
+        neighbor_list.update(atoms,cutoff);
     }
 
     // Save final values for monitoring
