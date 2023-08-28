@@ -37,8 +37,12 @@ void verlet_step2(Velocities_t &velocities, const Forces_t &forces, double times
 }
 
 void verlet_step1(Atoms &atoms, double timestep){
-    verlet_step1(atoms.positions, atoms.velocities, atoms.forces, timestep);
+    // Predictor step
+    atoms.velocities += 0.5 * atoms.forces * timestep / atoms.masses;
+    atoms.positions += atoms.velocities * timestep;
 }
+
 void verlet_step2(Atoms &atoms, double timestep){
-    verlet_step2(atoms.velocities, atoms.forces, timestep);
+    // Assuming new forces in params
+    atoms.velocities += 0.5 * atoms.forces * timestep / atoms.masses;
 }
