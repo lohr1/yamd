@@ -102,6 +102,7 @@ TEST(VerletTest, MultipleAtomAtom){
     atoms.positions.setRandom();
     atoms.velocities.setRandom();
     atoms.forces.setRandom();
+    atoms.masses.setConstant(1.0);
 
     // Save initials (forces constant):
     Positions_t i_pos = atoms.positions;

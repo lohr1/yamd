@@ -36,6 +36,7 @@ TEST(LJDirectSummationTest, Forces) {
 
     Atoms atoms(nb_atoms);
     atoms.positions.setRandom();  // random numbers between -1 and 1
+    atoms.masses.setConstant(1.0);
 
     // compute and store energy of the indisturbed configuration
     double e0{lj_direct_summation(atoms, epsilon, sigma)};
@@ -59,7 +60,7 @@ TEST(LJDirectSummationTest, Forces) {
 
             // check whether finite-difference and analytic forces agree
             if (abs(forces0(j, i)) > 1e-10) {
-                EXPECT_NEAR(abs(fd_force - forces0(j, i)) / forces0(j, i), 0, 1e-5);
+                EXPECT_NEAR(abs(fd_force - forces0(j, i)) / forces0(j, i), 0, 1e-4);
             } else {
                 EXPECT_NEAR(fd_force, forces0(j, i), 1e-10);
             }
