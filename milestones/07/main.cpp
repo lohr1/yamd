@@ -195,8 +195,8 @@ void equilibrate_EAM(Atoms& atoms, double target_temp, double time_eq, double re
             out_thresh += iter_out;
         }
 
-        // Update neighbor_list with new positions
-        neighbor_list.update(atoms,cutoff);
+        // Update neighbor_list with new positions (Ok to turn off for stable solid)
+//        neighbor_list.update(atoms,cutoff);
     }
 
     // Save final values for monitoring
@@ -244,14 +244,18 @@ void equilibrate_EAM(Atoms& atoms, double target_temp, double time_eq, double re
 
 int main(int argc, char *argv[]) {
     // Path to xyz file for this run:
-    std::string xyz_file = "/home/robin/School/HPC/Data/07/Equilibration/cluster_3871/final_state.xyz";
+    std::string xyz_file = "/home/robin/School/HPC/Data/Equilibrated_clusters_300K/cluster_923.xyz";
     // Directory to store data from this run:
-    std::string dir = "/home/robin/School/HPC/Data/08/DomainDecomp/quick_test_07/";
+    std::string out_dir = "/home/robin/School/HPC/Data/07/Equilibration/cluster_923/Test/";
 
-    double time_eq = 100; // Times 10.18 fs for real time
-    double tau_eq_pico = 1; // Times 1000 for fs
-    double real_time_step = 1; // fs
+    double time_fs = 100000; // Real time in fs
+    double timestep_fs = 1;
+    double tau_pico = 1;
     double target_temp = 300; // K (for equilibration only)
+
+    double time_eq = time_fs / 10.18; // Times 10.18 for real time in fs
+    double tau_eq_pico = tau_pico; // Times 1000 for fs
+    double real_time_step = timestep_fs; // fs
 
 
     // Time for cluster to relax after energy increase
@@ -259,12 +263,10 @@ int main(int argc, char *argv[]) {
     double real_tau_relax = 200; 
 
 
-    // For initial cluster:
+    // For initial cluster (no velocities):
 
 //     auto[names, positions]{read_xyz(xyz_file)};
 //     Atoms atoms{positions};
-//     atoms.velocities.setRandom();
-//     atoms.velocities *= 0.4;
 //     atoms.masses.setConstant(Au_molar_mass);
 
      // Otherwise:
@@ -274,11 +276,16 @@ int main(int argc, char *argv[]) {
     atoms.masses.setConstant(Au_molar_mass);
 
 
-    equilibrate_EAM(atoms,target_temp, time_eq, real_time_step, tau_eq_pico, dir);
+     std::cout << "Equilibrating : " << xyz_file << "\nTo target_temp: " << target_temp << " K\n";
+     std::cout << "Saving data in : " << out_dir << "\n";
+
+
+//    equilibrate_EAM(atoms,target_temp, time_eq, real_time_step, tau_eq_pico,
+//                     out_dir);
 
     // Now test equilibration by running without thermostat
 
-//    double t_therm_off = 300; // Times 10.18 fs for real time
-//    test_eq(atoms,t_therm_off,real_time_step, dir);
+    double t_therm_off = time_eq; // Times 10.18 fs for real time
+    test_eq(atoms,t_therm_off,real_time_step, out_dir);
     return 0;
 }

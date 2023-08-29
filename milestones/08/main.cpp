@@ -209,29 +209,23 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
 
 int main(int argc, char *argv[]) {
     // Initial setup which doesn't require MPI:
-    std::string xyz_file = "/home/robin/School/yamd/xyzs/cluster_3871.xyz";
-    std::string out_dir = "/home/robin/School/HPC/Data/08/DomainDecomp/cluster_3871/";
+    std::string xyz_file = "/home/robin/School/HPC/Data/Equilibrated_clusters_300K/cluster_923.xyz";
+    std::string out_dir = "/home/robin/School/HPC/Data/08/DomainDecomp/cluster_923/";
 
     // Time parameters in real units
     double time_fs = 1e5;
     double timestep_fs = 1;
 
     // Init atoms
-//    auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
-//    Atoms atoms{positions, velocities};
-//    atoms.masses.setConstant(Au_molar_mass);
-
-    auto[names, positions]{read_xyz(xyz_file)};
-    Atoms atoms{positions};
+    auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
+    Atoms atoms{positions, velocities};
     atoms.masses.setConstant(Au_molar_mass);
 
-    double boundary_shift = 100.0; // To create wiggle room btwn cluster and domain boundaries
+//    auto[names, positions]{read_xyz(xyz_file)};
+//    Atoms atoms{positions};
+//    atoms.masses.setConstant(Au_molar_mass);
 
-    // Define domain dimensions with atoms positions extrema plus wiggle room to keep cluster from interacting with itself
-    Eigen::Array3d domain_lengths(3);
-    for(int i = 0; i < 3; i++){
-        domain_lengths(i) = atoms.positions.row(i).maxCoeff() - atoms.positions.row(i).minCoeff() + boundary_shift;
-    }
+    double boundary_shift = 30.0; // To create wiggle room btwn cluster and domain boundaries
 
     // Center positions in domain
     double shift = boundary_shift / 2;
@@ -241,11 +235,24 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Define domain dimensions with atoms positions extrema plus wiggle room to keep cluster from interacting with itself
+    Eigen::Array3d domain_lengths(3);
+    for(int i = 0; i < 3; i++){
+        domain_lengths(i) = atoms.positions.row(i).maxCoeff() - atoms.positions.row(i).minCoeff() + boundary_shift;
+    }
+
+
+    std::cout << "Testing conservation of energy for : " <<
+        xyz_file << "\n Storing data in: " << out_dir <<
+        "\nInitializing MPI..." << std::endl;
+
+
     // Initialize MPI
     MPI_Init(&argc, &argv);
 
     // Init domain
-    Domain domain(MPI_COMM_WORLD, domain_lengths, {1, 2, 2}, {1, 1, 1});
+    Domain domain(MPI_COMM_WORLD, domain_lengths,
+                  {1, 1, 1}, {1, 1, 1});
 
     // Decompose atoms into subdomains
     domain.enable(atoms);
