@@ -66,14 +66,14 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
     double iter_out, out_thresh;
     std::ofstream trajectory_file;
 
+    iter_out =
+        time_tot / 100; // Output position every iter_out iterations
+    out_thresh = iter_out; // Threshold to count iter_out's
+
     // Create trajectory output file
     // Recover replicated state:
     domain.disable(atoms);
     if(rank == 0) {
-        iter_out =
-            time_tot / 100; // Output position every iter_out iterations
-        out_thresh = iter_out; // Threshold to count iter_out's
-
         // Create trajectory file
         trajectory_file = std::ofstream(dir + "trajectory.xyz");
         // Write initial frame
@@ -131,17 +131,24 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
         E_total = MPI::allreduce(E_local, MPI_SUM, MPI_COMM_WORLD);
 
 //        // XYZ output
+
+//        if(rank == 0){
+//            std::cout << "Rank 0 made it here, i=" << i << std::endl;
+//            std::cout << "out_thresh=" << out_thresh << std::endl;
+//        }
+
         if(i > out_thresh) {
+            std::cout << "Rank " << rank << ", i=" << i << std::endl;
             // Write a frame
             domain.disable(atoms);
             if(rank == 0) {
+                std::cout << "Writing frame" << std::endl;
                 write_xyz(trajectory_file, atoms);
-
-                // Increment the output threshold counter
-                out_thresh += iter_out;
             }
-            domain.enable(atoms);
-            domain.update_ghosts(atoms, border_width);
+            // Increment the output threshold counter
+            out_thresh += iter_out;
+
+            domain.enable(atoms); // Ghosts removed
         }
         // Exchange atoms between subdomains after each step (Removes ghosts)
         domain.exchange_atoms(atoms);
@@ -155,9 +162,12 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
         // Update neighborlist
         neighbor_list.update(atoms,cutoff);
 
+        if(i > nb_steps - 1000){
+            std::cout << "i: " << i << std::endl;
+        }
     }
 
-    std::cout << "Left loop" << std::endl;
+    std::cout << "After loop" << std::endl;
 
     // Save final energy
     Energy(nb_steps) = E_total;
@@ -215,20 +225,27 @@ int main(int argc, char *argv[]) {
     Atoms atoms{positions};
     atoms.masses.setConstant(Au_molar_mass);
 
-    double cutoff = 10.0;
-
+    double boundary_shift = 100.0; // To create wiggle room btwn cluster and domain boundaries
 
     // Define domain dimensions with atoms positions extrema plus wiggle room to keep cluster from interacting with itself
     Eigen::Array3d domain_lengths(3);
     for(int i = 0; i < 3; i++){
-        domain_lengths(i) = atoms.positions.row(i).maxCoeff() - atoms.positions.row(i).minCoeff() + 10.1;
+        domain_lengths(i) = atoms.positions.row(i).maxCoeff() - atoms.positions.row(i).minCoeff() + boundary_shift;
+    }
+
+    // Center positions in domain
+    double shift = boundary_shift / 2;
+    for(int i = 0; i < atoms.nb_atoms(); i++){
+        for(int j = 0; j < 3; j++){
+            atoms.positions(j, i) += shift;
+        }
     }
 
     // Initialize MPI
     MPI_Init(&argc, &argv);
 
     // Init domain
-    Domain domain(MPI_COMM_WORLD, domain_lengths, {1, 1, 1}, {1, 1, 1});
+    Domain domain(MPI_COMM_WORLD, domain_lengths, {1, 2, 2}, {1, 1, 1});
 
     // Decompose atoms into subdomains
     domain.enable(atoms);
