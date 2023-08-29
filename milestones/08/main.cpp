@@ -108,12 +108,22 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
 //            break;
 //        }
 
+        // Exchange atoms between subdomains after changing pos's (Removes ghosts)
+        domain.exchange_atoms(atoms);
 
-        // Update forces with new positions
+        // Update num local atoms
+        nb_local = atoms.nb_atoms();
+
+        // Repopulate ghosts for PE calc
+        domain.update_ghosts(atoms, border_width);
+
+        // Update neighborlist with new ghosts
+        neighbor_list.update(atoms,cutoff);
+
+        // Calc PE and forces with new neighbor_list, saving just PE for atoms in subdomain (nb_local)
         PE_local = ducastelle_domain_decomp(atoms, nb_local, neighbor_list);
 
-
-        // Verlet step 2 updates velocities, assuming the new forces are present:
+        // Update velocities according to new forces:
         verlet_step2(atoms, time_step);
 
 //        Eigen::ArrayXd x_vels = atoms.velocities.row(0);
@@ -137,6 +147,7 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
 //            std::cout << "out_thresh=" << out_thresh << std::endl;
 //        }
 
+        // XYZ output
         if(i > out_thresh) {
             std::cout << "Rank " << rank << ", i=" << i << std::endl;
             // Write a frame
@@ -148,19 +159,8 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
             // Increment the output threshold counter
             out_thresh += iter_out;
 
-            domain.enable(atoms); // Ghosts removed
+            domain.enable(atoms); // Ghosts removed (They are updated properly in next iteration)
         }
-        // Exchange atoms between subdomains after each step (Removes ghosts)
-        domain.exchange_atoms(atoms);
-
-        // Update num local atoms
-        nb_local = atoms.nb_atoms();
-        // Repopulate ghosts
-        domain.update_ghosts(atoms,border_width);
-
-
-        // Update neighborlist
-        neighbor_list.update(atoms,cutoff);
 
         if(i > nb_steps - 1000){
             std::cout << "i: " << i << std::endl;
