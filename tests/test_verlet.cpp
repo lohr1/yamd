@@ -29,7 +29,7 @@ TEST(VerletTest, SingleAtom) {
     std::vector<double> init_vel = {vx, vy, vz};
 
     // Run verlet integration for nb_steps
-    int nb_steps = 1000;
+    int nb_steps = 10000;
     double timestep = .01;
     for (int i = 0; i < nb_steps; ++i) {
         verlet_step1(x, y, z, vx, vy ,vz, fx, fy, fz, timestep);
@@ -109,14 +109,14 @@ TEST(VerletTest, MultipleAtomAtom){
     Velocities_t i_vel = atoms.velocities;
 
     // Integrate with verlet:
-    int nb_steps = 1000;
+    int nb_steps = 10000;
     double timestep = .01;
     for (int i = 0; i < nb_steps; ++i) {
         verlet_step1(atoms, timestep);
         verlet_step2(atoms, timestep);
     }
 
-    // Calculate analytical solution:
+    // Calculate analytical solution (mass=1):
     double t_tot = nb_steps * timestep;
     Positions_t analytical_pos = 0.5 * atoms.forces * t_tot * t_tot + i_vel * t_tot + i_pos;
     Velocities_t analytical_vel = atoms.forces * t_tot + i_vel;

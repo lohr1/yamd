@@ -57,7 +57,6 @@ class Atoms {
         positions.setRandom();
         velocities.setRandom();
         forces.setRandom();
-        masses.setRandom();
     }
 
 };

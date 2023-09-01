@@ -2,20 +2,14 @@
 // Created by robin on 05.07.23.
 //
 
-#include "test_berendsen.h"
+#include <gtest/gtest.h>
+
 #include "berendsen.h"
 #include "types.h"
 #include "helpers.h"
 
 #include "xyz.h"
 
-
-
-// Note: Everyone else implemented simple calc test... then Simulation goes in milestones
-
-TEST(BerendsenTest, SimulationTest){
-
-}
 
 TEST(BerendsenTest, ScalingTest) {
     // Checks Berendsen implementation against results of other scaling factor from Eq. 9 of Ch4 Lecture Notes.

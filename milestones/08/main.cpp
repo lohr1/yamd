@@ -19,17 +19,13 @@
 
 const double Au_molar_mass = 196.96657; // g/mol, since time is in units of 10.18 fs
 
-inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, double time_step_fs, const std::string& dir){
+void propagate_domain(Domain& domain, Atoms& atoms, double cutoff, double time_tot_fs, double time_step_fs, const std::string& dir){
     /*
      * Evolves system through time, making necessary adjustments for domain decomposition.
      *
-     * Domain decomp should already be enabled before calling, and should be
+     * Domain decomp should be enabled before calling, and should be
      * disabled after calling.
      */
-    // Generate neighbor list
-    double cutoff = 10.0; // Achieves approx. 5th nearest neighbor
-    NeighborList neighbor_list;
-    neighbor_list.update(atoms, cutoff);
 
     // Convert time variables to sim units
     double time_tot = time_tot_fs / 10.18; // times 10.18 fs to get real time
@@ -41,20 +37,20 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
     double border_width = 2 * cutoff;
     domain.update_ghosts(atoms, border_width);
 
+    // Create neighbor list including ghosts
+    NeighborList neighbor_list;
+    neighbor_list.update(atoms, cutoff);
 
     // Calc forces with ghost atoms, but save only PE of local atoms:
     double PE_local = ducastelle_domain_decomp(atoms, nb_local, neighbor_list);
-
 
     // Calc KE of local atoms
     double KE_local = kinetic_energy_local(atoms, nb_local);
 
     double E_local = PE_local + KE_local;
 
-
     // Calculate total energy with MPI
     double E_total = MPI::allreduce(E_local, MPI_SUM, MPI_COMM_WORLD);
-
 
     // Array to monitor total energy
     Eigen::ArrayXd Energy(nb_steps+1);
@@ -67,7 +63,7 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
     std::ofstream trajectory_file;
 
     iter_out =
-        time_tot / 100; // Output position every iter_out iterations
+        nb_steps / 10; // Output position every iter_out iterations
     out_thresh = iter_out; // Threshold to count iter_out's
 
     // Create trajectory output file
@@ -84,9 +80,6 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
     domain.enable(atoms);
     domain.update_ghosts(atoms, border_width);
 
-    Eigen::ArrayXd pos_before;
-
-
     for (int i = 0; i < nb_steps; ++i) {
 
         // Monitor total energy
@@ -95,20 +88,7 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
         // Verlet predictor step (changes pos and vel)
         verlet_step1(atoms, time_step);
 
-//        int frame = 3;
-//        if(i== frame - 1){
-//            pos_before = atoms.positions.row(0);
-//        }
-//        if(i == frame){
-//            Eigen::ArrayXd x_vels = atoms.positions.row(0);
-//            for(int j = 0; j < nb_local; j++){
-//                std::cout << "Atom: " << j
-//                          << " Delta X: " << x_vels(j) - pos_before(j) << std::endl;
-//            }
-//            break;
-//        }
-
-        // Exchange atoms between subdomains after changing pos's (Removes ghosts)
+        // Pos changed, so exchange atoms (Removes ghosts)
         domain.exchange_atoms(atoms);
 
         // Update num local atoms
@@ -117,7 +97,7 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
         // Repopulate ghosts for PE calc
         domain.update_ghosts(atoms, border_width);
 
-        // Update neighborlist with new ghosts
+        // Update neighbor_list with new ghosts
         neighbor_list.update(atoms,cutoff);
 
         // Calc PE and forces with new neighbor_list, saving just PE for atoms in subdomain (nb_local)
@@ -149,11 +129,10 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
 
         // XYZ output
         if(i > out_thresh) {
-            std::cout << "Rank " << rank << ", i=" << i << std::endl;
             // Write a frame
             domain.disable(atoms);
             if(rank == 0) {
-                std::cout << "Writing frame" << std::endl;
+                std::cout << "i= " << i << ". writing frame" << std::endl;
                 write_xyz(trajectory_file, atoms);
             }
             // Increment the output threshold counter
@@ -161,13 +140,7 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
 
             domain.enable(atoms); // Ghosts removed (They are updated properly in next iteration)
         }
-
-        if(i > nb_steps - 1000){
-            std::cout << "i: " << i << std::endl;
-        }
     }
-
-    std::cout << "After loop" << std::endl;
 
     // Save final energy
     Energy(nb_steps) = E_total;
@@ -189,14 +162,6 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
         // Close the data files
         outputFile.close();
 
-        // Write final configuration to XYZ file
-        // in case we want to start where we left off
-        std::ofstream final_xyz_file(dir + "final_state.xyz");
-        domain.disable(atoms);
-        write_xyz(final_xyz_file, atoms);
-        final_xyz_file.close();
-        domain.enable(atoms);
-
         // Write params to a text file
         std::ofstream paramFile(dir + "params.txt");
         paramFile << "time_tot: " << time_tot << std::endl;
@@ -210,11 +175,14 @@ inline void propagate_domain(Domain& domain, Atoms& atoms, double time_tot_fs, d
 int main(int argc, char *argv[]) {
     // Initial setup which doesn't require MPI:
     std::string xyz_file = "/home/robin/School/HPC/Data/Equilibrated_clusters_300K/cluster_923.xyz";
-    std::string out_dir = "/home/robin/School/HPC/Data/08/DomainDecomp/cluster_923/";
+    std::string out_dir = "/home/robin/School/HPC/Data/08/DomainDecomp/EnergyConservation/MPI_8/";
 
     // Time parameters in real units
-    double time_fs = 1e5;
+    double time_fs = 1e4;
     double timestep_fs = 1;
+
+    // Cutoff for neighbor_list
+    double cutoff = 10.0;
 
     // Init atoms
     auto[names, positions, velocities]{read_xyz_with_velocities(xyz_file)};
@@ -252,13 +220,13 @@ int main(int argc, char *argv[]) {
 
     // Init domain
     Domain domain(MPI_COMM_WORLD, domain_lengths,
-                  {1, 1, 1}, {1, 1, 1});
+                  {2, 2, 2}, {1, 1, 1});
 
     // Decompose atoms into subdomains
     domain.enable(atoms);
 
     // Run simulation
-    propagate_domain(domain, atoms, time_fs, timestep_fs, out_dir);
+    propagate_domain(domain, atoms, cutoff, time_fs, timestep_fs, out_dir);
 
     domain.disable(atoms);
     MPI_Finalize();
