@@ -19,8 +19,13 @@
 
 #include <fstream>
 #include <iostream>
+#include <experimental/filesystem>
 
+<<<<<<< HEAD
 const double Au_molar_mass = 196.96657; // g/mol, since time is in units of 10.18 fs
+=======
+namespace fs = std::experimental::filesystem;  // For creating directories
+>>>>>>> main
 
 void simulate_ts(std::string ts_str, double ts){
     /*
@@ -306,10 +311,7 @@ int main(int argc, char *argv[]) {
 
 //    double t_therm_off = sim_time_eq; // Times 10.18 fs for real time
 //    test_eq(atoms,t_therm_off,real_time_step, out_dir);
-
-    // Simulate several init clusters
-
-
+    
 
     return 0;
 }
