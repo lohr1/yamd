@@ -8,4 +8,4 @@ The submitted project report is included as the file 'MD_Sim_Report.pdf'
 
 ## Note on Code Organization
 
-The project is split into "milestones" where each milestone has a specific goal and contributed something unique to the overall grade of the project. This is **NOT** how I would structure a project in a real-world setting.
+The project is split into "milestones" where each milestone has a specific goal and contributed something unique to the overall grade of the project. However, this is **NOT** how I would structure a project in a real-world setting.
