@@ -21,11 +21,7 @@
 #include <iostream>
 #include <experimental/filesystem>
 
-<<<<<<< HEAD
 const double Au_molar_mass = 196.96657; // g/mol, since time is in units of 10.18 fs
-=======
-namespace fs = std::experimental::filesystem;  // For creating directories
->>>>>>> main
 
 void simulate_ts(std::string ts_str, double ts){
     /*
